@@ -1,0 +1,3 @@
+[submodule "include/KMC"]
+	path = include/KMC
+	url = git@github.com:refresh-bio/KMC.git
