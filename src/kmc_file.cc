@@ -1,4 +1,4 @@
-#include "kmc_file.h"
+#include "kmc_file.hh"
 
 
 std::unique_ptr<CKMCFile> new_ckmc_file() {
