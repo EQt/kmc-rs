@@ -4,7 +4,7 @@ KMC_API_OBJS = $(addprefix $(KMC_API_DIR)/,mmer.o kmc_file.o kmer_api.o)
 test: test_api
 	./$^
 
-test_api: test_api.cc ../src/kmc_file.hh ../src/kmc_file.cc $(KMC_API_OBJS)
+test_api: test_api.cc ../src/kmc_rust.hh ../src/kmc_rust.cc $(KMC_API_OBJS)
 	$(CXX) -o $@ -Wall -pedantic $(filter %.cc,$^) $(filter %.o,$^)
 
 clean:

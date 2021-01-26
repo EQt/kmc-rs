@@ -3,11 +3,16 @@ mod ffi {
     unsafe extern "C++" {
         include!("kmc-rs/src/kmc_rust.hh");
         type KmcFile;
+        type Kmer;
 
         fn new_ckmc_file() -> UniquePtr<KmcFile>;
         fn OpenForRA(self: Pin<&mut KmcFile>, fname: &CxxString) -> bool;
         fn KmerLength(self: Pin<&mut KmcFile>) -> u32;
         fn KmerCount(self: Pin<&mut KmcFile>) -> usize;
+
+        fn new_kmerapi() -> UniquePtr<Kmer>;
+        fn from_string(self: Pin<&mut Kmer>, kmer: &[u8]) -> bool;
+        fn to_string(self: Pin<&mut Kmer>) -> String;
     }
 }
 
@@ -36,6 +41,27 @@ impl KmcFile {
     }
 }
 
+pub struct Kmer {
+    handle: cxx::UniquePtr<ffi::Kmer>,
+}
+
+impl Kmer {
+    pub fn from(kmer: &[u8]) -> Result<Self, String> {
+        if kmer.last().unwrap() != &b'\0' {
+            return Err("Must end with zero byte!".into());
+        }
+        let mut handle = ffi::new_kmerapi();
+        if !handle.pin_mut().from_string(kmer) {
+            return Err(format!("Internal Error in CKmerApi::from_string"));
+        }
+        Ok(Self { handle })
+    }
+
+    pub fn to_string(&mut self) -> String {
+        self.handle.pin_mut().to_string()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -45,6 +71,14 @@ mod tests {
         let mut io = KmcFile::open_ra("./data/test1")?;
         assert_eq!(io.kmer_length(), 5);
         assert_eq!(io.kmer_count(), 291);
+        Ok(())
+    }
+
+    #[test]
+    fn test_kmer() -> Result<(), String> {
+        let mut kmer = Kmer::from(b"TAAGA\0")?;
+        let s = kmer.to_string();
+        assert_eq!(&s, "TAAGA", "got {}", &s);
         Ok(())
     }
 }

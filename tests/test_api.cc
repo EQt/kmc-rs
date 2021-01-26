@@ -1,17 +1,5 @@
-#include "../KMC/kmc_api/kmc_file.h"
-#include "../KMC/kmc_api/kmer_api.h"
-#include <bitset>
-#include <iostream>
-
-
-template <typename T>
-inline std::string
-bitstring(T x)
-{
-    static_assert(std::is_integral<T>::value, "Integral required.");
-    const unsigned long long val = (unsigned long long)x;
-    return std::bitset<8 * sizeof(T)>(val).to_string();
-}
+#include "../src/kmc_rust.hh"
+#include "bitstring.hh"
 
 
 void
@@ -22,13 +10,6 @@ check(const char *msg, const bool good)
         exit(1);
     }
 }
-
-
-struct Kmer : public CKmerAPI
-{
-  public:
-    uint64_t data0() const { return this->kmer_data[0]; }
-};
 
 
 int
