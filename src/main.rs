@@ -3,7 +3,6 @@
 #[cxx::bridge]
 mod ffi {
     unsafe extern "C++" {
-        // include!("kmc-rs/include/KMC/kmc_api/kmc_file.h");
         include!("kmc-rs/src/kmc_file.h");
         type CKMCFile;
 
@@ -12,5 +11,5 @@ mod ffi {
 }
 
 fn main() {
-    let ckmc_file = unsafe { ffi::new_ckmc_file() };
+    let ckmc_file = ffi::new_ckmc_file();
 }
