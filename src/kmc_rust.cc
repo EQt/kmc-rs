@@ -13,3 +13,10 @@ new_kmerapi()
 {
     return std::make_unique<Kmer>();
 }
+
+
+std::unique_ptr<Kmer>
+new_kmerapi_with_len(uint32_t k)
+{
+    return std::unique_ptr<Kmer>(new Kmer(k));
+}

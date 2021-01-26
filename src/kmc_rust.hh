@@ -12,12 +12,23 @@
 
 struct Kmer : public CKmerAPI
 {
+    using CKmerAPI::CKmerAPI;
+
     uint64_t data0() const { return this->kmer_data[0]; }
-#ifdef HAVE_RUST
-    bool from_string(rust::Slice<const unsigned char> kmer)
+
+    bool set_u64(uint64_t val)
     {
-        const char *cstr = (const char *)kmer.data();
-        return CKmerAPI::from_string(std::string(cstr, kmer.length()));
+        if (this->kmer_length > 32)
+            return false;
+        const auto offset = this->kmer_length + this->byte_alignment;
+        this->kmer_data[0] = (uint64)val << (64 - (offset * 2));
+        return true;
+    }
+
+#ifdef HAVE_RUST
+    bool from_string(rust::Str kmer)
+    {
+        return CKmerAPI::from_string(std::string(kmer));
     }
 
     rust::String to_string() { return CKmerAPI::to_string(); }
@@ -29,8 +40,19 @@ std::unique_ptr<Kmer>
 new_kmerapi();
 
 
+std::unique_ptr<Kmer>
+new_kmerapi_with_len(uint32_t k);
+
+
 struct KmcFile : public CKMCFile
 {
+#ifdef HAVE_RUST
+    bool OpenForRA(const rust::Str fname)
+    {
+        return CKMCFile::OpenForRA(std::string(fname));
+    }
+#endif
+
     std::size_t KmerCount() { return CKMCFile::KmerCount(); }
 
     size_t CheckKmer(Kmer &kmer)
