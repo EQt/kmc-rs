@@ -9,6 +9,7 @@ mod ffi {
         fn OpenForRA(self: Pin<&mut KmcFile>, fname: &CxxString) -> bool;
         fn KmerLength(self: Pin<&mut KmcFile>) -> u32;
         fn KmerCount(self: Pin<&mut KmcFile>) -> usize;
+        fn CheckKmer(self: Pin<&mut KmcFile>, kmer: Pin<&mut Kmer>) -> usize;
 
         fn new_kmerapi() -> UniquePtr<Kmer>;
         fn from_string(self: Pin<&mut Kmer>, kmer: &[u8]) -> bool;
@@ -18,6 +19,10 @@ mod ffi {
 
 pub struct KmcFile {
     handle: cxx::UniquePtr<ffi::KmcFile>,
+}
+
+pub struct Kmer {
+    handle: cxx::UniquePtr<ffi::Kmer>,
 }
 
 impl KmcFile {
@@ -36,13 +41,13 @@ impl KmcFile {
         self.handle.pin_mut().KmerLength()
     }
 
-    pub fn kmer_count(&mut self) -> usize {
+    pub fn num_kmers(&mut self) -> usize {
         self.handle.pin_mut().KmerCount()
     }
-}
 
-pub struct Kmer {
-    handle: cxx::UniquePtr<ffi::Kmer>,
+    pub fn count_kmer(&mut self, kmer: &mut Kmer) -> usize {
+        self.handle.pin_mut().CheckKmer(kmer.handle.pin_mut())
+    }
 }
 
 impl Kmer {
@@ -70,7 +75,7 @@ mod tests {
     fn test_open() -> Result<(), String> {
         let mut io = KmcFile::open_ra("./data/test1")?;
         assert_eq!(io.kmer_length(), 5);
-        assert_eq!(io.kmer_count(), 291);
+        assert_eq!(io.num_kmers(), 291);
         Ok(())
     }
 
@@ -79,6 +84,14 @@ mod tests {
         let mut kmer = Kmer::from(b"TAAGA\0")?;
         let s = kmer.to_string();
         assert_eq!(&s, "TAAGA", "got {}", &s);
+        Ok(())
+    }
+
+    #[test]
+    fn test_count_kmer() -> Result<(), String> {
+        let mut kmer = Kmer::from(b"TAAGA\0")?;
+        let mut io = KmcFile::open_ra("./data/test1")?;
+        assert_eq!(io.count_kmer(&mut kmer), 4);
         Ok(())
     }
 }
