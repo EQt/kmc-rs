@@ -4,8 +4,11 @@ import pytest
 
 @pytest.fixture
 def io():
+    from os import path
+
+    fname = path.join(path.dirname(__file__), "..", "data", "test1")
     io = py_kmc_api.KMCFile()
-    assert io.OpenForRA("test1")
+    assert io.OpenForRA(fname)
     yield io
     io.Close()
 
