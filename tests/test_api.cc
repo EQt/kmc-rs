@@ -45,6 +45,8 @@ main()
                   << "              " << bitstring(0b11'00'00'10'00L << (32 + 16))
                   << std::endl;
         check("kmer long", kmer.data0() == 0b11'00'00'10'00L << (32 + 16));
+        uint64 count;
+        check("check", io.CheckKmer(kmer, count));
     }
     {
         uint64 count;
