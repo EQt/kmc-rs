@@ -16,8 +16,8 @@ struct Kmer : public CKmerAPI
 #ifdef HAVE_RUST
     bool from_string(rust::Slice<const unsigned char> kmer)
     {
-        const char *str = (const char *)kmer.data();
-        return CKmerAPI::from_string(str);
+        const char *cstr = (const char *)kmer.data();
+        return CKmerAPI::from_string(std::string(cstr, kmer.length()));
     }
 
     rust::String to_string() { return CKmerAPI::to_string(); }
@@ -37,9 +37,8 @@ struct KmcFile : public CKMCFile
     {
         uint64 counter = 0;
         CKMCFile::CheckKmer(kmer, counter);
-        return (size_t) counter;
+        return (size_t)counter;
     }
-
 };
 
 
