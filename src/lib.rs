@@ -20,6 +20,7 @@ mod ffi {
     }
 }
 
+
 pub struct KmcFile {
     handle: cxx::UniquePtr<ffi::KmcFile>,
 }
@@ -29,7 +30,8 @@ pub struct Kmer {
 }
 
 impl KmcFile {
-    /// Open for random access mode
+    /// Open for random access mode.
+    /// The file name `fname` must not include the suffixes `.kmc_pre` or `.kmc_suf`.
     pub fn open_ra(fname: &str) -> Result<Self, String> {
         let mut handle = ffi::new_ckmc_file();
         if handle.pin_mut().OpenForRA(fname) {
@@ -39,14 +41,17 @@ impl KmcFile {
         }
     }
 
+    /// The parameter `k` when this data base was constructed with.
     pub fn kmer_length(&mut self) -> u32 {
         self.handle.pin_mut().KmerLength()
     }
 
+    /// Number of (canical) k-mers in the data base
     pub fn num_kmers(&mut self) -> usize {
         self.handle.pin_mut().KmerCount()
     }
 
+    /// How often did the canonical `kmer` occur?
     pub fn count_kmer(&mut self, kmer: &mut Kmer) -> usize {
         self.handle.pin_mut().CheckKmer(kmer.handle.pin_mut())
     }
