@@ -27,7 +27,7 @@ impl KmcFile {
     /// The file is automatically closed by [Drop].
     pub fn open_ra(fname: &str) -> Result<Self, String> {
         let mut handle = cxxbridge::ffi::new_ckmc_file();
-        if handle.pin_mut().OpenForRA(fname) {
+        if handle.pin_mut().open_for_ra(fname) {
             Ok(Self { handle })
         } else {
             Err(format!("Could not open '{}' for random access", fname))
@@ -36,7 +36,7 @@ impl KmcFile {
 
     /// The parameter `k` when this data base was constructed with.
     pub fn kmer_length(&self) -> u32 {
-        self.handle.KmerLength()
+        self.handle.kmer_len()
     }
 
     /// Number of (canical) k-mers in the data base.
@@ -44,18 +44,18 @@ impl KmcFile {
     /// It might be necessary to iterate through the whole file; that is why a `&mut self`
     /// is needed, here.
     pub fn num_kmers(&mut self) -> usize {
-        self.handle.pin_mut().KmerCount()
+        self.handle.pin_mut().kmer_count()
     }
 
     /// How often is the canonical `kmer` recorded in the data base?
     pub fn count_kmer(&self, kmer: &Kmer) -> usize {
-        self.handle.CheckKmer(&kmer.handle)
+        self.handle.check_kmer(&kmer.handle)
     }
 }
 
 impl Drop for KmcFile {
     fn drop(&mut self) {
-        if !self.handle.pin_mut().Close() {
+        if !self.handle.pin_mut().close() {
             panic!("error while closing");
         }
     }
@@ -85,7 +85,7 @@ impl Kmer {
 
     /// Number of symbols `k` of this kmer.
     pub fn len(&self) -> u32 {
-        self.handle.KmerLength()
+        self.handle.kmer_len()
     }
 
     /// Construct a kmer from bit encoded kmer `val` with `k` symbols.

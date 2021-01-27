@@ -24,7 +24,7 @@ struct Kmer : public CKmerAPI
         return true;
     }
 
-    uint32_t KmerLength() const { return this->kmer_length; }
+    uint32_t kmer_len() const { return this->kmer_length; }
 
 #ifdef HAVE_RUST
     bool from_string(rust::Str kmer)
@@ -40,41 +40,39 @@ struct Kmer : public CKmerAPI
 struct KmcFile : public CKMCFile
 {
 #ifdef HAVE_RUST
-    bool OpenForRA(const rust::Str fname)
-    {
-        return CKMCFile::OpenForRA(std::string(fname));
-    }
+    bool open_for_ra(const rust::Str fname) { return OpenForRA(std::string(fname)); }
 #endif
 
-    std::size_t KmerCount() { return CKMCFile::KmerCount(); }
+    std::size_t kmer_count() { return KmerCount(); }
 
-    size_t CheckKmer(const Kmer &kmer) const
+    inline uint32_t kmer_len() const { return KmerLength(); }
+
+    inline size_t check_kmer(const Kmer &kmer) const
     {
         uint64 counter = 0;
-        CKMCFile::CheckKmer(kmer, counter);
+        CheckKmer(kmer, counter);
         return (size_t)counter;
     }
+
+    inline bool close() { return Close(); }
 };
 
 
-inline
-std::unique_ptr<KmcFile>
+inline std::unique_ptr<KmcFile>
 new_ckmc_file()
 {
     return std::make_unique<KmcFile>();
 }
 
 
-inline
-std::unique_ptr<Kmer>
+inline std::unique_ptr<Kmer>
 new_kmerapi()
 {
     return std::make_unique<Kmer>();
 }
 
 
-inline
-std::unique_ptr<Kmer>
+inline std::unique_ptr<Kmer>
 new_kmerapi_with_len(uint32_t k)
 {
     return std::unique_ptr<Kmer>(new Kmer(k));
