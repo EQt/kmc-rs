@@ -31,7 +31,7 @@ struct Kmer : public CKmerAPI
         return CKmerAPI::from_string(std::string(kmer));
     }
 
-    rust::String to_string() { return CKmerAPI::to_string(); }
+    rust::String to_string() const { return CKmerAPI::to_string(); }
 #endif
 };
 
@@ -55,7 +55,7 @@ struct KmcFile : public CKMCFile
 
     std::size_t KmerCount() { return CKMCFile::KmerCount(); }
 
-    size_t CheckKmer(Kmer &kmer)
+    size_t CheckKmer(const Kmer &kmer) const
     {
         uint64 counter = 0;
         CKMCFile::CheckKmer(kmer, counter);

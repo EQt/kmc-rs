@@ -1,1 +1,2 @@
-# kmc-rs
+# Rust Bindings to KMC API
+
