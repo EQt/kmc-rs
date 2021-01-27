@@ -1,12 +1,22 @@
 [package]
 name = "kmc-rs"
-version = "0.1.0"
-authors = ["Elias Kuthe <elias.kuthe@tu-dortmund.de>", "Till Hartmann <till.hartmann@udo.edu>"]
+version = "0.1.1"
+authors = [
+   "Elias Kuthe <elias.kuthe@tu-dortmund.de>",
+   "Till Hartmann <till.hartmann@udo.edu>",
+]
 edition = "2018"
 license = "MIT"
 repository = "https://github.com/EQt/kmc-rs"
 categories = ["api-bindings", "database", "science"]
 description = "Rust Bindings to KMC"
+include = [
+   "KMC/kmc_api/*.cpp",
+   "KMC/kmc_api/*.h",
+   "src/cxxbridge.cc",
+   "Cargo.toml",
+   "**/*.rs",
+]
 
 [dependencies]
 cxx = "1.0"
