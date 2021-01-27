@@ -1,4 +1,4 @@
-#include "../src/kmc_rust.hh"
+#include "../src/cxxbridge.hh"
 #include "bitstring.hh"
 
 

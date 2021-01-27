@@ -1,6 +1,6 @@
 fn main() {
     cxx_build::bridge("src/cxxbridge.rs")
-        .file("src/kmc_rust.cc")
+        .file("src/cxxbridge.cc")
         .file("KMC/kmc_api/kmc_file.cpp")
         .file("KMC/kmc_api/mmer.cpp")
         .file("KMC/kmc_api/kmer_api.cpp")

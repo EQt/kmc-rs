@@ -1,4 +1,4 @@
-#include "kmc_rust.hh"
+#include "cxxbridge.hh"
 
 
 std::unique_ptr<KmcFile>

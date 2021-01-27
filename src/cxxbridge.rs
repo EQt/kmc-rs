@@ -1,7 +1,7 @@
 #[cxx::bridge]
 pub(crate) mod ffi {
     unsafe extern "C++" {
-        include!("kmc-rs/src/kmc_rust.hh");
+        include!("kmc-rs/src/cxxbridge.hh");
         type KmcFile;
         type Kmer;
 
