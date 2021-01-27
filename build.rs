@@ -3,6 +3,6 @@ fn main() {
         .file("KMC/kmc_api/kmc_file.cpp")
         .file("KMC/kmc_api/mmer.cpp")
         .file("KMC/kmc_api/kmer_api.cpp")
-        .flag_if_supported("-std=c++14")
+        .flag_if_supported("-std=c++17")
         .compile("kmc-rs");
 }
