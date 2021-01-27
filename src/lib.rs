@@ -24,7 +24,7 @@ pub struct Kmer {
 impl KmcFile {
     /// Open for random access mode.
     /// The file name `fname` must not include the suffixes `.kmc_pre` or `.kmc_suf`.
-    /// The file is automatically closed by [Drop]
+    /// The file is automatically closed by [Drop].
     pub fn open_ra(fname: &str) -> Result<Self, String> {
         let mut handle = cxxbridge::ffi::new_ckmc_file();
         if handle.pin_mut().OpenForRA(fname) {
@@ -40,6 +40,9 @@ impl KmcFile {
     }
 
     /// Number of (canical) k-mers in the data base.
+    ///
+    /// It might be necessary to iterate through the whole file; that is why a `&mut self`
+    /// is needed, here.
     pub fn num_kmers(&mut self) -> usize {
         self.handle.pin_mut().KmerCount()
     }
@@ -69,8 +72,8 @@ impl Kmer {
     }
 
     /// Useful to check what this kmer represents.
-    pub fn to_string(&mut self) -> String {
-        self.handle.pin_mut().to_string()
+    pub fn to_string(&self) -> String {
+        self.handle.to_string()
     }
 
     /// Construct a new kmer and reserve space for `k` symbols.
@@ -87,6 +90,7 @@ impl Kmer {
 
     /// Construct a kmer from bit encoded kmer `val` with `k` symbols.
     /// Note: `k` must be at most `32`!
+    /// See [Kmer::set_u64] for further details.
     pub fn from_u64(k: u8, val: u64) -> Self {
         let mut kmer = Self::with_k(k);
         kmer.set_u64(val);
@@ -95,6 +99,19 @@ impl Kmer {
 
     /// Reset the kmer to a new bit encoded kmer of same length.
     /// Note: length `k` must be at most `32`!
+    ///
+    /// The coding is as usual:
+    ///  - `A` -> `0b00`
+    ///  - `C` -> `0b01`
+    ///  - `T` -> `0b10`
+    ///  - `G` -> `0b11`
+    ///
+    /// # Example
+    /// ```rust
+    /// let mut kmer = kmc_rs::Kmer::with_k(5);
+    /// kmer.set_u64(0b11_00_00_10_00);
+    /// assert_eq!(kmer.to_string(), "TAAGA");
+    /// ```
     pub fn set_u64(&mut self, val: u64) {
         assert!(self.len() <= 32);
         self.handle.pin_mut().set_u64(val);
@@ -115,10 +132,16 @@ mod tests {
 
     #[test]
     fn test_kmer() -> Result<(), String> {
-        let mut kmer = Kmer::from("TAAGA")?;
+        let kmer = Kmer::from("TAAGA")?;
         let s = kmer.to_string();
         assert_eq!(&s, "TAAGA", "got {}", &s);
         Ok(())
+    }
+
+    #[test]
+    fn test_kmer_errors() {
+        assert!(Kmer::from("TCN").is_err());
+        assert!(Kmer::from("actG").is_ok());
     }
 
     #[test]
@@ -130,25 +153,22 @@ mod tests {
     }
 
     #[test]
-    fn test_from_u64_taaga() {
-        let mut kmer = Kmer::from_u64(5, 0b11_00_00_10_00);
-        assert_eq!(kmer.to_string(), "TAAGA");
-    }
-
-    #[test]
     fn test_from_u64_tcaaccttggaa() {
         assert_eq!("TCAACCTTGGAA".len(), 12);
-        let mut kmer = Kmer::from_u64(12, 0b1101_0000_0101_1111_1010_0000);
+        let kmer = Kmer::from_u64(12, 0b1101_0000_0101_1111_1010_0000);
         assert_eq!(kmer.to_string(), "TCAACCTTGGAA");
     }
 
     #[test]
     fn test_from_u64_ttttttttttttttttttttttttttttttc() {
-        assert_eq!("TCAACCTTGGAA".len(), 12);
-        let mut kmer = Kmer::from_u64(
-            31,
-            0b1111111111111111111111111111111111111111111111111111111111111_01,
+        assert_eq!("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTC".len(), 31);
+        assert_eq!(
+            "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTC",
+            Kmer::from_u64(
+                31,
+                0b1111111111111111111111111111111111111111111111111111111111111_01,
+            )
+            .to_string()
         );
-        assert_eq!(kmer.to_string(), "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTC");
     }
 }
