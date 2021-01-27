@@ -17,14 +17,18 @@ mod ffi {
         fn from_string(self: Pin<&mut Kmer>, kmer: &str) -> bool;
         fn set_u64(self: Pin<&mut Kmer>, val: u64) -> bool;
         fn to_string(self: &Kmer) -> String;
+        fn KmerLength(self: &Kmer) -> u32;
     }
 }
 
-
+/// A KMC data base; usually consisting of two files ending `.kmc_pre` and `.kmc_suf`.
+/// You can open a [KmcFile] in two modes of which currently only the *random access mode**
+/// is supported (see [KmcFile::open_ra]).
 pub struct KmcFile {
     handle: cxx::UniquePtr<ffi::KmcFile>,
 }
 
+/// Binary representation of a kmer to be queried by [KmcFile::count_kmer].
 pub struct Kmer {
     handle: cxx::UniquePtr<ffi::Kmer>,
 }
@@ -32,6 +36,7 @@ pub struct Kmer {
 impl KmcFile {
     /// Open for random access mode.
     /// The file name `fname` must not include the suffixes `.kmc_pre` or `.kmc_suf`.
+    /// The file is automatically closed by [Drop]
     pub fn open_ra(fname: &str) -> Result<Self, String> {
         let mut handle = ffi::new_ckmc_file();
         if handle.pin_mut().OpenForRA(fname) {
@@ -46,12 +51,12 @@ impl KmcFile {
         self.handle.KmerLength()
     }
 
-    /// Number of (canical) k-mers in the data base
+    /// Number of (canical) k-mers in the data base.
     pub fn num_kmers(&mut self) -> usize {
         self.handle.pin_mut().KmerCount()
     }
 
-    /// How often did the canonical `kmer` occur?
+    /// How often is the canonical `kmer` recorded in the data base?
     pub fn count_kmer(&self, kmer: &Kmer) -> usize {
         self.handle.CheckKmer(&kmer.handle)
     }
@@ -66,6 +71,7 @@ impl Drop for KmcFile {
 }
 
 impl Kmer {
+    /// Construct a kmer by a `&str`.
     pub fn from(kmer: &str) -> Result<Self, String> {
         let mut handle = ffi::new_kmerapi();
         if !handle.pin_mut().from_string(kmer) {
@@ -74,24 +80,35 @@ impl Kmer {
         Ok(Self { handle })
     }
 
+    /// Useful to check what this kmer represents.
     pub fn to_string(&mut self) -> String {
         self.handle.pin_mut().to_string()
     }
 
+    /// Construct a new kmer and reserve space for `k` symbols.
     pub fn with_k(k: u8) -> Self {
-        assert!(k <= 32);
         Self {
             handle: ffi::new_kmerapi_with_len(k as u32),
         }
     }
 
+    /// Number of symbols `k` of this kmer.
+    pub fn len(&self) -> u32 {
+        self.handle.KmerLength()
+    }
+
+    /// Construct a kmer from bit encoded kmer `val` with `k` symbols.
+    /// Note: `k` must be at most `32`!
     pub fn from_u64(k: u8, val: u64) -> Self {
         let mut kmer = Self::with_k(k);
         kmer.set_u64(val);
         kmer
     }
 
+    /// Reset the kmer to a new bit encoded kmer of same length.
+    /// Note: length `k` must be at most `32`!
     pub fn set_u64(&mut self, val: u64) {
+        assert!(self.len() <= 32);
         self.handle.pin_mut().set_u64(val);
     }
 }

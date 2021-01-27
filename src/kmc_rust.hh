@@ -25,6 +25,8 @@ struct Kmer : public CKmerAPI
         return true;
     }
 
+    uint32_t KmerLength() const { return this->kmer_length; }
+
 #ifdef HAVE_RUST
     bool from_string(rust::Str kmer)
     {
