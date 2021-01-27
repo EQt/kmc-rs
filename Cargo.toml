@@ -1,10 +1,12 @@
 [package]
 name = "kmc-rs"
 version = "0.1.0"
-authors = ["Till Hartmann <till.hartmann@udo.edu>"]
+authors = ["Elias Kuthe <elias.kuthe@tu-dortmund.de>", "Till Hartmann <till.hartmann@udo.edu>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MIT"
+repository = "https://github.com/EQt/kmc-rs"
+categories = ["api-bindings", "database", "science"]
+description = "Rust Bindings to KMC"
 
 [dependencies]
 cxx = "1.0"
