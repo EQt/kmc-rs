@@ -1,4 +1,4 @@
-#include "../src/cxxbridge.hh"
+#include "../src/cxxbridge.cc"
 #include "bitstring.hh"
 
 
