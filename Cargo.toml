@@ -11,6 +11,7 @@ repository = "https://github.com/EQt/kmc-rs"
 categories = ["api-bindings", "database", "science"]
 description = "Rust Bindings to KMC"
 include = [
+   "data/*.kmc_*",
    "KMC/kmc_api/*.cpp",
    "KMC/kmc_api/*.h",
    "src/cxxbridge.cc",
