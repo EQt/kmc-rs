@@ -1,3 +1,12 @@
+//! A small bridge to KMC's API using [cxx].
+//! # Example
+//! ```rust
+//! let db = kmc_rs::KmcFile::open_ra("data/test1")?;
+//! let kmer = kmc_rs::Kmer::from("TAAGA")?;
+//! assert_eq!(db.kmer_length(), 5);     // we have an index over 5-mers
+//! assert_eq!(db.count_kmer(&kmer), 4); // "TAAGA" (or reverse complement) occurs 4 times
+//! # Ok::<(), String>(())
+//! ```
 mod cxxbridge;
 
 /// A KMC data base; usually consisting of two files ending `.kmc_pre` and `.kmc_suf`.
