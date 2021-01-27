@@ -69,11 +69,6 @@ impl Kmer {
         Ok(Self { handle })
     }
 
-    /// Useful to check what this kmer represents.
-    pub fn to_string(&self) -> String {
-        self.handle.to_string()
-    }
-
     /// Construct a new kmer and reserve space for `k` symbols.
     pub fn with_k(k: u8) -> Self {
         Self {
@@ -113,6 +108,22 @@ impl Kmer {
     pub fn set_u64(&mut self, val: u64) {
         assert!(self.len() <= 32);
         self.handle.pin_mut().set_u64(val);
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+impl std::fmt::Display for cxxbridge::ffi::Kmer {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(&self.to_string())
+    }
+}
+
+impl std::fmt::Display for Kmer {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.handle.fmt(f)
     }
 }
 
