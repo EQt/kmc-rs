@@ -1,36 +1,15 @@
-#[cxx::bridge]
-mod ffi {
-    unsafe extern "C++" {
-        include!("kmc-rs/src/kmc_rust.hh");
-        type KmcFile;
-        type Kmer;
-
-        fn new_ckmc_file() -> UniquePtr<KmcFile>;
-        fn OpenForRA(self: Pin<&mut KmcFile>, fname: &str) -> bool;
-        fn KmerLength(self: &KmcFile) -> u32;
-        fn KmerCount(self: Pin<&mut KmcFile>) -> usize;
-        fn CheckKmer(self: &KmcFile, kmer: &Kmer) -> usize;
-        fn Close(self: Pin<&mut KmcFile>) -> bool;
-
-        fn new_kmerapi() -> UniquePtr<Kmer>;
-        fn new_kmerapi_with_len(k: u32) -> UniquePtr<Kmer>;
-        fn from_string(self: Pin<&mut Kmer>, kmer: &str) -> bool;
-        fn set_u64(self: Pin<&mut Kmer>, val: u64) -> bool;
-        fn to_string(self: &Kmer) -> String;
-        fn KmerLength(self: &Kmer) -> u32;
-    }
-}
+mod cxxbridge;
 
 /// A KMC data base; usually consisting of two files ending `.kmc_pre` and `.kmc_suf`.
 /// You can open a [KmcFile] in two modes of which currently only the *random access mode**
 /// is supported (see [KmcFile::open_ra]).
 pub struct KmcFile {
-    handle: cxx::UniquePtr<ffi::KmcFile>,
+    handle: cxx::UniquePtr<cxxbridge::ffi::KmcFile>,
 }
 
 /// Binary representation of a kmer to be queried by [KmcFile::count_kmer].
 pub struct Kmer {
-    handle: cxx::UniquePtr<ffi::Kmer>,
+    handle: cxx::UniquePtr<cxxbridge::ffi::Kmer>,
 }
 
 impl KmcFile {
@@ -38,7 +17,7 @@ impl KmcFile {
     /// The file name `fname` must not include the suffixes `.kmc_pre` or `.kmc_suf`.
     /// The file is automatically closed by [Drop]
     pub fn open_ra(fname: &str) -> Result<Self, String> {
-        let mut handle = ffi::new_ckmc_file();
+        let mut handle = cxxbridge::ffi::new_ckmc_file();
         if handle.pin_mut().OpenForRA(fname) {
             Ok(Self { handle })
         } else {
@@ -73,7 +52,7 @@ impl Drop for KmcFile {
 impl Kmer {
     /// Construct a kmer by a `&str`.
     pub fn from(kmer: &str) -> Result<Self, String> {
-        let mut handle = ffi::new_kmerapi();
+        let mut handle = cxxbridge::ffi::new_kmerapi();
         if !handle.pin_mut().from_string(kmer) {
             return Err(format!("Internal Error in CKmerApi::from_string"));
         }
@@ -88,7 +67,7 @@ impl Kmer {
     /// Construct a new kmer and reserve space for `k` symbols.
     pub fn with_k(k: u8) -> Self {
         Self {
-            handle: ffi::new_kmerapi_with_len(k as u32),
+            handle: cxxbridge::ffi::new_kmerapi_with_len(k as u32),
         }
     }
 
