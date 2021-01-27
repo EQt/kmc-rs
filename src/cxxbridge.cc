@@ -50,8 +50,9 @@ struct KmcFile : public CKMCFile
     inline size_t check_kmer(const Kmer &kmer) const
     {
         uint64 counter = 0;
-        CheckKmer(kmer, counter);
-        return (size_t)counter;
+        if (CheckKmer(kmer, counter))
+            return (size_t)counter;
+        return 0;
     }
 
     inline bool close() { return Close(); }
