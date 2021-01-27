@@ -1,0 +1,18 @@
+language: rust
+rust:
+  - stable
+
+os:
+  - linux
+  - osx
+  - windows
+
+jobs:
+  fast_finish: true
+
+notifications:
+  email:
+    on_failure: change
+    on_success: change
+
+cache: cargo
