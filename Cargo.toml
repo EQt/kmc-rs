@@ -9,6 +9,7 @@ edition = "2018"
 license = "MIT"
 repository = "https://github.com/EQt/kmc-rs"
 categories = ["api-bindings", "database", "science"]
+keywords = ["kmer", "bioinformatics", "wrapper"]
 description = "Rust Bindings to KMC"
 include = [
    "data/*.kmc_*",
