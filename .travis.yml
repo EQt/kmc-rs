@@ -15,4 +15,8 @@ notifications:
     on_failure: change
     on_success: change
 
+branches:
+  only:
+    - main
+
 # cache: cargo
