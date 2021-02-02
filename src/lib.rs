@@ -10,8 +10,9 @@
 mod cxxbridge;
 
 /// A KMC data base; usually consisting of two files ending `.kmc_pre` and `.kmc_suf`.
-/// You can open a [KmcFile] in two modes of which currently only the *random access mode**
-/// is supported (see [KmcFile::open_ra]).
+/// You can open a [KmcFile] in two modes:
+///  * **random access mode** (see [KmcFile::open_ra]), and
+///  * **iterator mode** (see [KmcFile::open_iter]).
 pub struct KmcFile {
     ptr: cxx::UniquePtr<cxxbridge::ffi::KmcFile>,
 }
@@ -21,6 +22,7 @@ pub struct Kmer {
     handle: cxx::UniquePtr<cxxbridge::ffi::Kmer>,
 }
 
+#[doc(hidden)]
 pub struct KmcFileIter<'a> {
     file: &'a mut cxx::UniquePtr<cxxbridge::ffi::KmcFile>,
     kmer: Kmer,
@@ -75,12 +77,13 @@ impl KmcFile {
     }
 
     /// How often is the canonical `kmer` recorded in the data base?
+    /// Only works when opened as [KmcFile::open_ra].
     pub fn count_kmer(&self, kmer: &Kmer) -> usize {
         self.ptr.check_kmer(&kmer.handle)
     }
 
     /// Reset the file pointer to the beginning.
-    /// Only useful when opened as [KmcFile::open_for_iter].
+    /// Only useful when opened as [KmcFile::open_iter].
     pub fn restart(&mut self) -> bool {
         self.ptr.pin_mut().restart_listing()
     }
