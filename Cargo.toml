@@ -1,6 +1,6 @@
 [package]
 name = "kmc-rs"
-version = "0.1.1"
+version = "0.1.2"
 authors = [
    "Elias Kuthe <elias.kuthe@tu-dortmund.de>",
    "Till Hartmann <till.hartmann@udo.edu>",
