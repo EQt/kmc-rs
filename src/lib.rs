@@ -12,15 +12,20 @@ mod cxxbridge;
 /// A KMC data base; usually consisting of two files ending `.kmc_pre` and `.kmc_suf`.
 /// You can open a [KmcFile] in two modes of which currently only the *random access mode**
 /// is supported (see [KmcFile::open_ra]).
-pub struct KmcFile (cxx::UniquePtr<cxxbridge::ffi::KmcFile>);
+pub struct KmcFile(cxx::UniquePtr<cxxbridge::ffi::KmcFile>);
 
 /// Binary representation of a kmer to be queried by [KmcFile::count_kmer].
 pub struct Kmer {
     handle: cxx::UniquePtr<cxxbridge::ffi::Kmer>,
 }
 
+pub struct KmcFileIter<'a> {
+    file: &'a mut KmcFile,
+    kmer: Kmer,
+}
+
 impl KmcFile {
-    /// Open for random access mode.
+    /// Open in random access mode.
     /// The file name `fname` must not include the suffixes `.kmc_pre` or `.kmc_suf`.
     /// The file is automatically closed by [Drop].
     pub fn open_ra(fname: &str) -> Result<Self, String> {
@@ -32,9 +37,31 @@ impl KmcFile {
         }
     }
 
+    /// Open in iterator mode (also called „listing“ mode).
+    /// The file name `fname` must not include the suffixes `.kmc_pre` or `.kmc_suf`.
+    /// The file is automatically closed by [Drop].
+    pub fn open_iter(fname: &str) -> Result<Self, String> {
+        let mut handle = cxxbridge::ffi::new_ckmc_file();
+        if handle.pin_mut().open_for_iter(fname) {
+            Ok(Self(handle))
+        } else {
+            Err(format!("Could not open '{}' in listing mode", fname))
+        }
+    }
+
     /// The parameter `k` when this data base was constructed with.
     pub fn kmer_length(&self) -> u32 {
         self.0.kmer_len()
+    }
+
+    pub fn iter(&mut self) -> KmcFileIter {
+        use std::convert::TryInto;
+
+        let k = self.kmer_length().try_into().unwrap();
+        KmcFileIter {
+            file: self,
+            kmer: Kmer::with_k(k),
+        }
     }
 
     /// Number of (canical) k-mers in the data base.
@@ -55,6 +82,20 @@ impl Drop for KmcFile {
     fn drop(&mut self) {
         if !self.0.pin_mut().close() {
             panic!("error while closing");
+        }
+    }
+}
+
+impl<'a> Iterator for &'a KmcFileIter<'a> {
+    type Item = (&'a Kmer, usize);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut count = 0;
+        let mut kmer = Kmer::with_k(self.file.kmer_length() as u8);
+        if self.file.0.pin_mut().next(kmer.handle.pin_mut(), &mut count) {
+            Some((&self.kmer, count))
+        } else {
+            None
         }
     }
 }
@@ -105,11 +146,25 @@ impl Kmer {
     /// kmer.set_u64(0b11_00_00_10_00);
     /// assert_eq!(kmer.to_string(), "TAAGA");
     /// ```
+    #[inline]
     pub fn set_u64(&mut self, val: u64) {
-        assert!(self.len() <= 32);
+        debug_assert!(self.len() <= 32);
         self.handle.pin_mut().set_u64(val);
     }
 
+    /// Obtain the first 64 bits of this Kmer.
+    /// When `self.len() > 32` the bits are incomplete.
+    /// ```rust
+    /// let kmer = kmc_rs::Kmer::from("TAAGA")?;
+    /// assert_eq!(kmer.as_u64(), 0b11_00_00_10_00);
+    /// Ok::<(), String>(())
+    /// ```
+    #[inline]
+    pub fn as_u64(&self) -> u64 {
+        self.handle.as_u64()
+    }
+
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -179,5 +234,18 @@ mod tests {
             )
             .to_string()
         );
+    }
+
+    #[test]
+    fn test_open_iter() -> Result<(), String> {
+        let io = KmcFile::open_iter("./data/test1")?;
+        assert_eq!(io.kmer_length(), 5);
+        Ok(())
+    }
+
+    #[test]
+    fn test_iter_count() -> Result<(), String> {
+        assert_eq!(KmcFile::open_iter("./data/test1")?.iter().count(), 291);
+        Ok(())
     }
 }

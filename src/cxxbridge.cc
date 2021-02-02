@@ -13,7 +13,13 @@ struct Kmer : public CKmerAPI
 {
     using CKmerAPI::CKmerAPI;
 
-    uint64_t data0() const { return this->kmer_data[0]; }
+    inline uint64_t data0() const { return this->kmer_data[0]; }
+
+    inline uint64_t as_u64() const
+    {
+        const auto offset = this->kmer_length + this->byte_alignment;
+        return data0() >> (64 - (offset * 2));
+    }
 
     bool set_u64(uint64_t val)
     {
@@ -41,9 +47,18 @@ struct KmcFile : public CKMCFile
 {
 #ifdef HAVE_RUST
     bool open_for_ra(const rust::Str fname) { return OpenForRA(std::string(fname)); }
+    bool open_for_iter(const rust::Str fn) { return OpenForListing(std::string(fn)); }
 #endif
 
-    std::size_t kmer_count() { return KmerCount(); }
+    inline std::size_t kmer_count() { return KmerCount(); }
+
+    inline bool next(Kmer &kmer, size_t &count)
+    {
+        uint64 count2;
+        const bool r = ReadNextKmer(kmer, count2);
+        count = count2;
+        return r;
+    }
 
     inline uint32_t kmer_len() const { return KmerLength(); }
 
