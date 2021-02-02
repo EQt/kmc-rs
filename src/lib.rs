@@ -60,6 +60,23 @@ impl KmcFile {
 
     /// Start a new iterator yielding 64-bit encoded kmer items
     /// `(kmer, count): (u64, usize)`.
+    ///
+    /// For example, count all kmers starting with `"TG"`
+    /// ```
+    /// let mut db = kmc_rs::KmcFile::open_iter("data/test1")?;
+    /// assert_eq!(db.kmer_length(), 5);
+    /// let mut kmer = kmc_rs::Kmer::with_k(5);
+    /// let mut count_tg = 0;
+    /// while let Some(count) = db.read_next(&mut kmer) {
+    ///     if kmer.as_u64() >> 3 == 0b11_10 {
+    ///         count_tg += count;
+    ///     }
+    /// }
+    /// assert_eq!(count_tg, 18);
+    /// # Ok::<(), String>(())
+    /// ```
+    ///
+    /// Only works when opened as [KmcFile::open_iter].
     pub fn iter_u64<'a>(&'a mut self) -> KmcFileIterU64<'a> {
         use std::convert::TryInto;
 
@@ -97,10 +114,19 @@ impl KmcFile {
     /// ([KmcFile::restart] might be useful then).
     ///
     /// Only works when opened as [KmcFile::open_iter].
+    pub fn read_next(&mut self, kmer: &mut Kmer) -> Option<usize> {
+        if kmer.len() == self.kmer_length() {
+            unsafe { self.read_next_unchecked(kmer) }
+        } else {
+            None
+        }
+    }
+
+    /// Like [KmcFile::read_next] but do not check the lengths.
     ///
     /// # Safety
     /// Might crash when `self.kmer_length() != kmer.len()`.
-    pub unsafe fn read_next(&mut self, kmer: &mut Kmer) -> Option<usize> {
+    pub unsafe fn read_next_unchecked(&mut self, kmer: &mut Kmer) -> Option<usize> {
         let mut count = 0;
         if self.ptr.pin_mut().next(kmer.handle.pin_mut(), &mut count) {
             Some(count)
@@ -122,7 +148,11 @@ impl<'a> Iterator for KmcFileIterU64<'a> {
     type Item = (u64, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
-        unsafe { self.file.read_next(&mut self.kmer) }.map(|c| (self.kmer.as_u64(), c))
+        unsafe {
+            self.file
+                .read_next_unchecked(&mut self.kmer)
+                .map(|c| (self.kmer.as_u64(), c))
+        }
     }
 }
 
