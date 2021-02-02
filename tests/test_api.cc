@@ -12,8 +12,8 @@ check(const char *msg, const bool good)
 }
 
 
-int
-main()
+void
+test_ra()
 {
     CKMCFile io;
     check("OpenForRA", io.OpenForRA("../data/test1"));
@@ -36,6 +36,30 @@ main()
         check("check", io.CheckKmer(kmer, count));
         check("count correct", count == 4);
     }
+}
 
+
+void
+test_it()
+{
+    CKMCFile io;
+    check("OpenForListing", io.OpenForListing("../data/test1"));
+    const auto k = 5;
+    check("k", io.KmerLength() == 5);
+    Kmer kmer(k);
+
+    uint64 count;
+    size_t no_kmers = 0;
+    while (io.ReadNextKmer(kmer, count))
+        no_kmers++;
+    check("no of kmers", no_kmers == 291);
+}
+
+
+int
+main()
+{
+    test_it();
+    test_ra();
     return 0;
 }
