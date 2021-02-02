@@ -23,8 +23,8 @@ pub struct Kmer {
 }
 
 #[doc(hidden)]
-pub struct KmcFileIter<'a> {
-    file: &'a mut cxx::UniquePtr<cxxbridge::ffi::KmcFile>,
+pub struct KmcFileIterU64<'a> {
+    file: &'a mut KmcFile,
     kmer: Kmer,
 }
 
@@ -58,12 +58,14 @@ impl KmcFile {
         self.ptr.kmer_len()
     }
 
-    pub fn iter<'a>(&'a mut self) -> KmcFileIter<'a> {
+    /// Start a new iterator yielding 64-bit encoded kmer items
+    /// `(kmer, count): (u64, usize)`.
+    pub fn iter_u64<'a>(&'a mut self) -> KmcFileIterU64<'a> {
         use std::convert::TryInto;
 
         let k = self.kmer_length().try_into().unwrap();
-        KmcFileIter {
-            file: &mut self.ptr,
+        KmcFileIterU64 {
+            file: self,
             kmer: Kmer::with_k(k),
         }
     }
@@ -87,6 +89,25 @@ impl KmcFile {
     pub fn restart(&mut self) -> bool {
         self.ptr.pin_mut().restart_listing()
     }
+
+    /// Read next entry into `kmer`.
+    ///
+    /// If there was one available return `Some(count)`; otherwise
+    /// return None to indicate the end of the file
+    /// ([KmcFile::restart] might be useful then).
+    ///
+    /// Only works when opened as [KmcFile::open_iter].
+    ///
+    /// # Safety
+    /// Might crash when `self.kmer_length() != kmer.len()`.
+    pub unsafe fn read_next(&mut self, kmer: &mut Kmer) -> Option<usize> {
+        let mut count = 0;
+        if self.ptr.pin_mut().next(kmer.handle.pin_mut(), &mut count) {
+            Some(count)
+        } else {
+            None
+        }
+    }
 }
 
 impl Drop for KmcFile {
@@ -97,18 +118,11 @@ impl Drop for KmcFile {
     }
 }
 
-impl<'a> Iterator for KmcFileIter<'a> {
+impl<'a> Iterator for KmcFileIterU64<'a> {
     type Item = (u64, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut count = 0;
-        let ptr: &mut cxx::UniquePtr<cxxbridge::ffi::KmcFile> = &mut self.file;
-        let r = ptr.pin_mut().next(self.kmer.handle.pin_mut(), &mut count);
-        if r {
-            Some((self.kmer.as_u64(), count))
-        } else {
-            None
-        }
+        unsafe { self.file.read_next(&mut self.kmer) }.map(|c| (self.kmer.as_u64(), c))
     }
 }
 
@@ -257,7 +271,7 @@ mod tests {
 
     #[test]
     fn test_iter_count() -> Result<(), String> {
-        assert_eq!(KmcFile::open_iter("./data/test1")?.iter().count(), 291);
+        assert_eq!(KmcFile::open_iter("./data/test1")?.iter_u64().count(), 291);
         Ok(())
     }
 
@@ -265,7 +279,7 @@ mod tests {
     fn test_iter_count_taaga() -> Result<(), String> {
         assert_eq!(
             KmcFile::open_iter("./data/test1")?
-                .iter()
+                .iter_u64()
                 .filter(|&(b, _)| { b == 0b11_00_00_10_00 })
                 .map(|(_, c)| c)
                 .next()
