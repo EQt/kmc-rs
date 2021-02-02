@@ -12,7 +12,9 @@ mod cxxbridge;
 /// A KMC data base; usually consisting of two files ending `.kmc_pre` and `.kmc_suf`.
 /// You can open a [KmcFile] in two modes of which currently only the *random access mode**
 /// is supported (see [KmcFile::open_ra]).
-pub struct KmcFile(cxx::UniquePtr<cxxbridge::ffi::KmcFile>);
+pub struct KmcFile {
+    ptr: cxx::UniquePtr<cxxbridge::ffi::KmcFile>,
+}
 
 /// Binary representation of a kmer to be queried by [KmcFile::count_kmer].
 pub struct Kmer {
@@ -20,7 +22,7 @@ pub struct Kmer {
 }
 
 pub struct KmcFileIter<'a> {
-    file: &'a mut KmcFile,
+    file: &'a mut cxx::UniquePtr<cxxbridge::ffi::KmcFile>,
     kmer: Kmer,
 }
 
@@ -29,9 +31,9 @@ impl KmcFile {
     /// The file name `fname` must not include the suffixes `.kmc_pre` or `.kmc_suf`.
     /// The file is automatically closed by [Drop].
     pub fn open_ra(fname: &str) -> Result<Self, String> {
-        let mut handle = cxxbridge::ffi::new_ckmc_file();
-        if handle.pin_mut().open_for_ra(fname) {
-            Ok(Self(handle))
+        let mut ptr = cxxbridge::ffi::new_ckmc_file();
+        if ptr.pin_mut().open_for_ra(fname) {
+            Ok(Self { ptr })
         } else {
             Err(format!("Could not open '{}' for random access", fname))
         }
@@ -41,9 +43,9 @@ impl KmcFile {
     /// The file name `fname` must not include the suffixes `.kmc_pre` or `.kmc_suf`.
     /// The file is automatically closed by [Drop].
     pub fn open_iter(fname: &str) -> Result<Self, String> {
-        let mut handle = cxxbridge::ffi::new_ckmc_file();
-        if handle.pin_mut().open_for_iter(fname) {
-            Ok(Self(handle))
+        let mut ptr = cxxbridge::ffi::new_ckmc_file();
+        if ptr.pin_mut().open_for_iter(fname) {
+            Ok(Self { ptr })
         } else {
             Err(format!("Could not open '{}' in listing mode", fname))
         }
@@ -51,15 +53,15 @@ impl KmcFile {
 
     /// The parameter `k` when this data base was constructed with.
     pub fn kmer_length(&self) -> u32 {
-        self.0.kmer_len()
+        self.ptr.kmer_len()
     }
 
-    pub fn iter(&mut self) -> KmcFileIter {
+    pub fn iter<'a>(&'a mut self) -> KmcFileIter<'a> {
         use std::convert::TryInto;
 
         let k = self.kmer_length().try_into().unwrap();
         KmcFileIter {
-            file: self,
+            file: &mut self.ptr,
             kmer: Kmer::with_k(k),
         }
     }
@@ -69,31 +71,32 @@ impl KmcFile {
     /// It might be necessary to iterate through the whole file; that is why a `&mut self`
     /// is needed, here.
     pub fn num_kmers(&mut self) -> usize {
-        self.0.pin_mut().kmer_count()
+        self.ptr.pin_mut().kmer_count()
     }
 
     /// How often is the canonical `kmer` recorded in the data base?
     pub fn count_kmer(&self, kmer: &Kmer) -> usize {
-        self.0.check_kmer(&kmer.handle)
+        self.ptr.check_kmer(&kmer.handle)
     }
 }
 
 impl Drop for KmcFile {
     fn drop(&mut self) {
-        if !self.0.pin_mut().close() {
+        if !self.ptr.pin_mut().close() {
             panic!("error while closing");
         }
     }
 }
 
-impl<'a> Iterator for &'a KmcFileIter<'a> {
-    type Item = (&'a Kmer, usize);
+impl<'a> Iterator for KmcFileIter<'a> {
+    type Item = (u64, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut count = 0;
-        let mut kmer = Kmer::with_k(self.file.kmer_length() as u8);
-        if self.file.0.pin_mut().next(kmer.handle.pin_mut(), &mut count) {
-            Some((&self.kmer, count))
+        let ptr: &mut cxx::UniquePtr<cxxbridge::ffi::KmcFile> = &mut self.file;
+        let r = ptr.pin_mut().next(self.kmer.handle.pin_mut(), &mut count);
+        if r {
+            Some((self.kmer.as_u64(), count))
         } else {
             None
         }
@@ -246,6 +249,20 @@ mod tests {
     #[test]
     fn test_iter_count() -> Result<(), String> {
         assert_eq!(KmcFile::open_iter("./data/test1")?.iter().count(), 291);
+        Ok(())
+    }
+
+    #[test]
+    fn test_iter_count_taaga() -> Result<(), String> {
+        assert_eq!(
+            KmcFile::open_iter("./data/test1")?
+                .iter()
+                .filter(|&(b, _)| { b == 0b11_00_00_10_00 })
+                .map(|(_, c)| c)
+                .next()
+                .ok_or("should not happen")?,
+            4
+        );
         Ok(())
     }
 }
