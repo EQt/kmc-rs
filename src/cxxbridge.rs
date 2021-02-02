@@ -13,6 +13,7 @@ pub(crate) mod ffi {
         fn check_kmer(self: &KmcFile, kmer: &Kmer) -> usize;
         fn close(self: Pin<&mut KmcFile>) -> bool;
         fn next(self: Pin<&mut KmcFile>, kmer: Pin<&mut Kmer>, count: &mut usize) -> bool;
+        fn restart_listing(self: Pin<&mut KmcFile>) -> bool;
 
         fn new_kmerapi() -> UniquePtr<Kmer>;
         fn new_kmerapi_with_len(k: u32) -> UniquePtr<Kmer>;

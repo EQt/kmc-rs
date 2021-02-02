@@ -78,6 +78,12 @@ impl KmcFile {
     pub fn count_kmer(&self, kmer: &Kmer) -> usize {
         self.ptr.check_kmer(&kmer.handle)
     }
+
+    /// Reset the file pointer to the beginning.
+    /// Only useful when opened as [KmcFile::open_for_iter].
+    pub fn restart(&mut self) -> bool {
+        self.ptr.pin_mut().restart_listing()
+    }
 }
 
 impl Drop for KmcFile {

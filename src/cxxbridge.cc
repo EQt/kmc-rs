@@ -60,6 +60,8 @@ struct KmcFile : public CKMCFile
         return r;
     }
 
+    inline bool restart_listing() { return RestartListing(); }
+
     inline uint32_t kmer_len() const { return KmerLength(); }
 
     inline size_t check_kmer(const Kmer &kmer) const
