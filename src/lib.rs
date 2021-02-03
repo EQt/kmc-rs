@@ -7,6 +7,9 @@
 //! assert_eq!(db.count_kmer(&kmer), 4); // "TAAGA" (or reverse complement) occurs 4 times
 //! # Ok::<(), String>(())
 //! ```
+
+use cxxbridge::ffi;
+use std::pin::Pin;
 mod cxxbridge;
 
 /// A KMC data base; usually consisting of two files ending `.kmc_pre` and `.kmc_suf`.
@@ -14,19 +17,19 @@ mod cxxbridge;
 ///  * **random access mode** (see [KmcFile::open_ra]), and
 ///  * **iterator mode** (see [KmcFile::open_iter]).
 pub struct KmcFile {
-    ptr: cxx::UniquePtr<cxxbridge::ffi::KmcFile>,
+    ptr: cxx::UniquePtr<ffi::KmcFile>,
 }
 
 /// Binary representation of a kmer to be queried by [KmcFile::count_kmer].
 pub struct Kmer {
-    handle: cxx::UniquePtr<cxxbridge::ffi::Kmer>,
+    handle: cxx::UniquePtr<ffi::Kmer>,
 }
 
 #[doc(hidden)]
 pub struct KmcFileIterU64<'a> {
     kmer: Kmer,
-    cxx_kmer: *mut cxxbridge::ffi::Kmer,
-    cxx_file: std::pin::Pin<&'a mut cxxbridge::ffi::KmcFile>,
+    cxx_kmer: *mut ffi::Kmer,
+    cxx_file: Pin<&'a mut ffi::KmcFile>,
 }
 
 impl KmcFile {
@@ -34,7 +37,7 @@ impl KmcFile {
     /// The file name `fname` must not include the suffixes `.kmc_pre` or `.kmc_suf`.
     /// The file is automatically closed by [Drop].
     pub fn open_ra(fname: &str) -> Result<Self, String> {
-        let mut ptr = cxxbridge::ffi::new_ckmc_file();
+        let mut ptr = ffi::new_ckmc_file();
         if ptr.pin_mut().open_for_ra(fname) {
             Ok(Self { ptr })
         } else {
@@ -46,7 +49,7 @@ impl KmcFile {
     /// The file name `fname` must not include the suffixes `.kmc_pre` or `.kmc_suf`.
     /// The file is automatically closed by [Drop].
     pub fn open_iter(fname: &str) -> Result<Self, String> {
-        let mut ptr = cxxbridge::ffi::new_ckmc_file();
+        let mut ptr = ffi::new_ckmc_file();
         if ptr.pin_mut().open_for_iter(fname) {
             Ok(Self { ptr })
         } else {
@@ -89,7 +92,7 @@ impl KmcFile {
         };
         it.cxx_kmer = unsafe {
             let ck = it.kmer.handle.as_mut().unwrap().get_unchecked_mut();
-            ck as *mut cxxbridge::ffi::Kmer
+            ck as *mut ffi::Kmer
         };
         it
     }
@@ -170,7 +173,7 @@ impl<'a> Iterator for KmcFileIterU64<'a> {
 impl Kmer {
     /// Construct a kmer by a `&str`.
     pub fn from(kmer: &str) -> Result<Self, String> {
-        let mut handle = cxxbridge::ffi::new_kmerapi();
+        let mut handle = ffi::new_kmerapi();
         if !handle.pin_mut().from_string(kmer) {
             return Err(format!("Internal Error in CKmerApi::from_string"));
         }
@@ -180,7 +183,7 @@ impl Kmer {
     /// Construct a new kmer and reserve space for `k` symbols.
     pub fn with_k(k: u8) -> Self {
         Self {
-            handle: cxxbridge::ffi::new_kmerapi_with_len(k as u32),
+            handle: ffi::new_kmerapi_with_len(k as u32),
         }
     }
 
@@ -237,7 +240,7 @@ impl Kmer {
     }
 }
 
-impl std::fmt::Display for cxxbridge::ffi::Kmer {
+impl std::fmt::Display for ffi::Kmer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.write_str(&self.to_string())
     }
