@@ -24,8 +24,9 @@ pub struct Kmer {
 
 #[doc(hidden)]
 pub struct KmcFileIterU64<'a> {
-    file: &'a mut KmcFile,
     kmer: Kmer,
+    cxx_kmer: *mut cxxbridge::ffi::Kmer,
+    cxx_file: std::pin::Pin<&'a mut cxxbridge::ffi::KmcFile>,
 }
 
 impl KmcFile {
@@ -81,10 +82,16 @@ impl KmcFile {
         use std::convert::TryInto;
 
         let k = self.kmer_length().try_into().unwrap();
-        KmcFileIterU64 {
-            file: self,
+        let mut it = KmcFileIterU64 {
             kmer: Kmer::with_k(k),
-        }
+            cxx_kmer: std::ptr::null_mut(),
+            cxx_file: self.ptr.pin_mut(),
+        };
+        it.cxx_kmer = unsafe {
+            let ck = it.kmer.handle.as_mut().unwrap().get_unchecked_mut();
+            ck as *mut cxxbridge::ffi::Kmer
+        };
+        it
     }
 
     /// Number of (canical) k-mers in the data base.
@@ -114,6 +121,7 @@ impl KmcFile {
     /// ([KmcFile::restart] might be useful then).
     ///
     /// Only works when opened as [KmcFile::open_iter].
+    #[inline]
     pub fn read_next(&mut self, kmer: &mut Kmer) -> Option<usize> {
         if kmer.len() == self.kmer_length() {
             unsafe { self.read_next_unchecked(kmer) }
@@ -126,6 +134,7 @@ impl KmcFile {
     ///
     /// # Safety
     /// Might crash when `self.kmer_length() != kmer.len()`.
+    #[inline]
     pub unsafe fn read_next_unchecked(&mut self, kmer: &mut Kmer) -> Option<usize> {
         let mut count = 0;
         if self.ptr.pin_mut().next(kmer.handle.pin_mut(), &mut count) {
@@ -148,10 +157,12 @@ impl<'a> Iterator for KmcFileIterU64<'a> {
     type Item = (u64, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
-        unsafe {
-            self.file
-                .read_next_unchecked(&mut self.kmer)
-                .map(|c| (self.kmer.as_u64(), c))
+        let mut count = 0;
+        let kmer = unsafe { std::pin::Pin::new_unchecked(&mut *self.cxx_kmer) };
+        if self.cxx_file.as_mut().next(kmer, &mut count) {
+            Some((self.kmer.as_u64(), count))
+        } else {
+            None
         }
     }
 }
