@@ -9,7 +9,6 @@
 //! ```
 
 use cxxbridge::ffi;
-use std::pin::Pin;
 mod cxxbridge;
 
 /// A KMC data base; usually consisting of two files ending `.kmc_pre` and `.kmc_suf`.
@@ -23,13 +22,6 @@ pub struct KmcFile {
 /// Binary representation of a kmer to be queried by [KmcFile::count_kmer].
 pub struct Kmer {
     ptr: cxx::UniquePtr<ffi::Kmer>,
-}
-
-#[doc(hidden)]
-pub struct KmcFileIterU64<'a> {
-    kmer: Kmer,
-    cxx_kmer: *mut ffi::Kmer,
-    cxx_file: Pin<&'a mut ffi::KmcFile>,
 }
 
 impl KmcFile {
@@ -81,8 +73,31 @@ impl KmcFile {
     /// ```
     ///
     /// Only works when opened as [KmcFile::open_iter].
-    pub fn iter_u64<'a>(&'a mut self) -> KmcFileIterU64<'a> {
+    pub fn iter_u64<'a>(&'a mut self) -> impl Iterator<Item = (u64, usize)> + 'a {
         use std::convert::TryInto;
+        use std::pin::Pin;
+
+        struct KmcFileIterU64<'a> {
+            kmer: Kmer,
+            cxx_kmer: *mut ffi::Kmer,
+            cxx_file: Pin<&'a mut ffi::KmcFile>,
+        }
+
+        impl<'a> Iterator for KmcFileIterU64<'a> {
+            type Item = (u64, usize);
+
+            #[inline]
+            fn next(&mut self) -> Option<Self::Item> {
+                let mut count = 0;
+                let kmer = unsafe { std::pin::Pin::new_unchecked(&mut *self.cxx_kmer) };
+                if self.cxx_file.as_mut().next(kmer, &mut count) {
+                    let bits = unsafe { &*self.cxx_kmer }.as_u64();
+                    Some((bits, count))
+                } else {
+                    None
+                }
+            }
+        }
 
         let k = self.kmer_length().try_into().unwrap();
         let mut it = KmcFileIterU64 {
@@ -150,22 +165,6 @@ impl Drop for KmcFile {
     fn drop(&mut self) {
         if !self.ptr.pin_mut().close() {
             panic!("error while closing");
-        }
-    }
-}
-
-impl<'a> Iterator for KmcFileIterU64<'a> {
-    type Item = (u64, usize);
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        let mut count = 0;
-        let kmer = unsafe { std::pin::Pin::new_unchecked(&mut *self.cxx_kmer) };
-        if self.cxx_file.as_mut().next(kmer, &mut count) {
-            let bits = unsafe { &*self.cxx_kmer }.as_u64();
-            Some((bits, count))
-        } else {
-            None
         }
     }
 }
