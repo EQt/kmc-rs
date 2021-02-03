@@ -154,6 +154,9 @@ impl Drop for KmcFile {
     }
 }
 
+unsafe impl Send for KmcFile {}
+unsafe impl Sync for KmcFile {}
+
 impl<'a> Iterator for KmcFileIterU64<'a> {
     type Item = (u64, usize);
 
