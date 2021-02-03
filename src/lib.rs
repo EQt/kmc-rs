@@ -22,7 +22,7 @@ pub struct KmcFile {
 
 /// Binary representation of a kmer to be queried by [KmcFile::count_kmer].
 pub struct Kmer {
-    handle: cxx::UniquePtr<ffi::Kmer>,
+    ptr: cxx::UniquePtr<ffi::Kmer>,
 }
 
 #[doc(hidden)]
@@ -90,10 +90,8 @@ impl KmcFile {
             cxx_kmer: std::ptr::null_mut(),
             cxx_file: self.ptr.pin_mut(),
         };
-        it.cxx_kmer = unsafe {
-            let ck = it.kmer.handle.as_mut().unwrap().get_unchecked_mut();
-            ck as *mut ffi::Kmer
-        };
+        it.cxx_kmer =
+            unsafe { it.kmer.ptr.as_mut().unwrap().get_unchecked_mut() as *mut ffi::Kmer };
         it
     }
 
@@ -108,7 +106,7 @@ impl KmcFile {
     /// How often is the canonical `kmer` recorded in the data base?
     /// Only works when opened as [KmcFile::open_ra].
     pub fn count_kmer(&self, kmer: &Kmer) -> usize {
-        self.ptr.check_kmer(&kmer.handle)
+        self.ptr.check_kmer(&kmer.ptr)
     }
 
     /// Reset the file pointer to the beginning.
@@ -140,7 +138,7 @@ impl KmcFile {
     #[inline]
     pub unsafe fn read_next_unchecked(&mut self, kmer: &mut Kmer) -> Option<usize> {
         let mut count = 0;
-        if self.ptr.pin_mut().next(kmer.handle.pin_mut(), &mut count) {
+        if self.ptr.pin_mut().next(kmer.ptr.pin_mut(), &mut count) {
             Some(count)
         } else {
             None
@@ -159,11 +157,13 @@ impl Drop for KmcFile {
 impl<'a> Iterator for KmcFileIterU64<'a> {
     type Item = (u64, usize);
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let mut count = 0;
         let kmer = unsafe { std::pin::Pin::new_unchecked(&mut *self.cxx_kmer) };
         if self.cxx_file.as_mut().next(kmer, &mut count) {
-            Some((self.kmer.as_u64(), count))
+            let bits = unsafe { &*self.cxx_kmer }.as_u64();
+            Some((bits, count))
         } else {
             None
         }
@@ -177,19 +177,19 @@ impl Kmer {
         if !handle.pin_mut().from_string(kmer) {
             return Err(format!("Internal Error in CKmerApi::from_string"));
         }
-        Ok(Self { handle })
+        Ok(Self { ptr: handle })
     }
 
     /// Construct a new kmer and reserve space for `k` symbols.
     pub fn with_k(k: u8) -> Self {
         Self {
-            handle: ffi::new_kmerapi_with_len(k as u32),
+            ptr: ffi::new_kmerapi_with_len(k as u32),
         }
     }
 
     /// Number of symbols `k` of this kmer.
     pub fn len(&self) -> u32 {
-        self.handle.kmer_len()
+        self.ptr.kmer_len()
     }
 
     /// Construct a kmer from bit encoded kmer `val` with `k` symbols.
@@ -219,7 +219,7 @@ impl Kmer {
     #[inline]
     pub fn set_u64(&mut self, val: u64) {
         debug_assert!(self.len() <= 32);
-        self.handle.pin_mut().set_u64(val);
+        self.ptr.pin_mut().set_u64(val);
     }
 
     /// Obtain the first 64 bits of this Kmer.
@@ -231,7 +231,7 @@ impl Kmer {
     /// ```
     #[inline]
     pub fn as_u64(&self) -> u64 {
-        self.handle.as_u64()
+        self.ptr.as_u64()
     }
 
     #[inline]
@@ -248,7 +248,7 @@ impl std::fmt::Display for ffi::Kmer {
 
 impl std::fmt::Display for Kmer {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.handle.fmt(f)
+        self.ptr.fmt(f)
     }
 }
 
