@@ -76,11 +76,25 @@ impl KmcFile {
     pub fn iter_u64<'a>(&'a mut self) -> impl Iterator<Item = (u64, usize)> + 'a {
         use std::convert::TryInto;
         use std::pin::Pin;
+        use std::ptr::NonNull;
 
         struct KmcFileIterU64<'a> {
             kmer: Kmer,
-            cxx_kmer: *mut ffi::Kmer,
+            cxx_kmer: NonNull<ffi::Kmer>,
             cxx_file: Pin<&'a mut ffi::KmcFile>,
+        }
+
+        impl<'a> KmcFileIterU64<'a> {
+            fn new(file: &'a mut KmcFile, k: u8) -> KmcFileIterU64<'a> {
+                let mut it = KmcFileIterU64 {
+                    kmer: Kmer::with_k(k),
+                    cxx_kmer: NonNull::dangling(),
+                    cxx_file: file.ptr.pin_mut(),
+                };
+                let kref = unsafe { it.kmer.ptr.as_mut().unwrap().get_unchecked_mut() };
+                it.cxx_kmer = NonNull::from(kref);
+                it
+            }
         }
 
         impl<'a> Iterator for KmcFileIterU64<'a> {
@@ -89,10 +103,9 @@ impl KmcFile {
             #[inline]
             fn next(&mut self) -> Option<Self::Item> {
                 let mut count = 0;
-                let kmer = unsafe { std::pin::Pin::new_unchecked(&mut *self.cxx_kmer) };
+                let kmer = unsafe { Pin::new_unchecked(self.cxx_kmer.as_mut()) };
                 if self.cxx_file.as_mut().next(kmer, &mut count) {
-                    let bits = unsafe { &*self.cxx_kmer }.as_u64();
-                    Some((bits, count))
+                    Some((unsafe { self.cxx_kmer.as_ref() }.as_u64(), count))
                 } else {
                     None
                 }
@@ -100,14 +113,7 @@ impl KmcFile {
         }
 
         let k = self.kmer_length().try_into().unwrap();
-        let mut it = KmcFileIterU64 {
-            kmer: Kmer::with_k(k),
-            cxx_kmer: std::ptr::null_mut(),
-            cxx_file: self.ptr.pin_mut(),
-        };
-        it.cxx_kmer =
-            unsafe { it.kmer.ptr.as_mut().unwrap().get_unchecked_mut() as *mut ffi::Kmer };
-        it
+        KmcFileIterU64::new(self, k)
     }
 
     /// Number of (canical) k-mers in the data base.
